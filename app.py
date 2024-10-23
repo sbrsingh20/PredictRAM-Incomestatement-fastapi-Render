@@ -2,7 +2,6 @@ import pandas as pd
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict
 
 # Load the data from Excel files
 inflation_data = pd.read_excel('Inflation_event_stock_analysis_resultsOct.xlsx')
@@ -11,6 +10,11 @@ interest_rate_data = pd.read_excel('interestrate_event_stock_analysis_resultsOct
 interest_rate_income_data = pd.read_excel('interestrate_IncomeStatement_correlation_results.xlsx')
 
 app = FastAPI()
+
+# Root endpoint
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the Stock Analysis API! Use the /stock-details endpoint."}
 
 class StockRequest(BaseModel):
     stock_symbol: str
@@ -47,6 +51,7 @@ async def get_stock_details(request: StockRequest):
         "projections": projections,
         "interpretation": interpretation
     }
+
 
 def generate_projections(event_details, income_details, expected_rate, event_type, method):
     latest_event_value = pd.to_numeric(income_details.get('Latest Event Value', 0), errors='coerce')
