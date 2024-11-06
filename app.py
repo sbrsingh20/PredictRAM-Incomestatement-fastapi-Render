@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load the data from Excel files
 inflation_data = pd.read_excel('Inflation_event_stock_analysis_resultsOct.xlsx')
@@ -10,6 +11,14 @@ interest_rate_data = pd.read_excel('interestrate_event_stock_analysis_resultsOct
 interest_rate_income_data = pd.read_excel('interestrate_IncomeStatement_correlation_results.xlsx')
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # or "*" to allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Root endpoint
 @app.get("/")
