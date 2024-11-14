@@ -1,8 +1,8 @@
 import pandas as pd
-import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 
 # Load the data from Excel files
 inflation_data = pd.read_excel('Inflation_event_stock_analysis_resultsOct.xlsx')
@@ -26,41 +26,43 @@ async def read_root():
     return {"message": "Welcome to the Stock Analysis API! Use the /stock-details endpoint."}
 
 class StockRequest(BaseModel):
-    stock_symbol: str
+    stock_symbols: List[str]
     event_type: str
     expected_rate: float
     method: str
 
 @app.post("/stock-details/")
 async def get_stock_details(request: StockRequest):
-    stock_symbol = request.stock_symbol
     event_type = request.event_type
     expected_rate = request.expected_rate
     method = request.method
+    results = []
 
-    if event_type == 'Inflation':
-        event_row = inflation_data[inflation_data['Symbol'] == stock_symbol]
-        income_row = income_data[income_data['Stock Name'] == stock_symbol]
-    else:  # Interest Rate
-        event_row = interest_rate_data[interest_rate_data['Symbol'] == stock_symbol]
-        income_row = interest_rate_income_data[interest_rate_income_data['Stock Name'] == stock_symbol]
+    for stock_symbol in request.stock_symbols:
+        if event_type == 'Inflation':
+            event_row = inflation_data[inflation_data['Symbol'] == stock_symbol]
+            income_row = income_data[income_data['Stock Name'] == stock_symbol]
+        else:  # Interest Rate
+            event_row = interest_rate_data[interest_rate_data['Symbol'] == stock_symbol]
+            income_row = interest_rate_income_data[interest_rate_income_data['Stock Name'] == stock_symbol]
 
-    if event_row.empty or income_row.empty:
-        raise HTTPException(status_code=404, detail="Stock symbol not found")
+        if event_row.empty or income_row.empty:
+            raise HTTPException(status_code=404, detail=f"Stock symbol '{stock_symbol}' not found")
 
-    event_details = event_row.iloc[0]
-    income_details = income_row.iloc[0]
+        event_details = event_row.iloc[0]
+        income_details = income_row.iloc[0]
 
-    projections = generate_projections(event_details, income_details, expected_rate, event_type, method)
-    interpretation = interpret_data(event_details, income_details, event_type)
+        projections = generate_projections(event_details, income_details, expected_rate, event_type, method)
+        interpretation = interpret_data(event_details, income_details, event_type)
 
-    return {
-        "stock_symbol": stock_symbol,
-        "event_type": event_type,
-        "projections": projections,
-        "interpretation": interpretation
-    }
+        results.append({
+            "stock_symbol": stock_symbol,
+            "event_type": event_type,
+            "projections": projections,
+            "interpretation": interpretation
+        })
 
+    return {"results": results}
 
 def generate_projections(event_details, income_details, expected_rate, event_type, method):
     latest_event_value = pd.to_numeric(income_details.get('Latest Event Value', 0), errors='coerce')
@@ -167,4 +169,3 @@ def interpret_data(event_details, income_details, event_type):
             interpretation['Income Statement'] = "Low Operating Margin: Reflects risk in profitability."
 
     return interpretation
-
